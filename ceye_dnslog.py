@@ -65,7 +65,7 @@ def get_arguments():
     cmd_args = {k:v for k, v in vars(args).items() if v}
 
     default = {
-        'token': '4b61de125d55f87917b24f898d5d817f',
+        'token': 'your token',
         'type': 'http',
         'filter': ''
     }
