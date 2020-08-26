@@ -2,11 +2,12 @@
 #coding: utf-8
 
 import json
-import prettytable
 import requests
 import argparse
+import hashlib
 from time import sleep
 from typing import ChainMap
+
 
 class CeyeDNSLog(object):
     def __init__(self, args):
@@ -19,41 +20,38 @@ class CeyeDNSLog(object):
 
     def get_log(self):
         try:
-            request = self.session.get(self.url)
+            request = self.session.get(self.url, timeout = 5)
             if request.status_code != 200:
-                print(u'[-] 不能访问ceye.io')
-                exit(1)
+                print(u'[-] 连接出错：{}'.format(request.status_code))
+                #exit(1)
             response = request.text
             if 'meta' not in response:
-                print(u'[-] 没有数据')
+                print(u'[-] 没有获取到数据')
             data = json.loads(response)
-            if data['meta']['code'] == 200 and data['meta']['message'] == 'OK' and data['data']:
+            if data['data']:
                 return data['data']
-        except KeyboardInterrupt:
-            exit(1)
-        except:
-            pass
+        except TimeoutError:
+            print(u'连接CEYE超时')
                 
 
     def run(self):
-        table = prettytable.PrettyTable()
-        table.field_names = ['序号', 'URL', '远程地址', '访问时间']
         index = 1
-        created_at = []
+        row_dict = {}
         while True:
             try:
                 data = self.get_log()
-                for row in data:
-                    if row['name'] and row['remote_addr'] and row['created_at'] and (row['created_at'] not in created_at):
-                        created_at.append(row['created_at'])
-                        table.add_row([index, row['name'], row['remote_addr'], row['created_at']])
-                        index += 1
-                print(table)
+                if data:
+                    for row in data:
+                        data_hash = hashlib.md5((row['name'] + row['remote_addr'] + row['created_at']).encode()).hexdigest()
+                        if data_hash not in row_dict:
+                            row_dict[str(data_hash)] = '\t'.join([str(index), row['name'], row['remote_addr'], row['created_at']])
+                            index += 1
+                            print(row_dict[data_hash])
                 sleep(10)
             except KeyboardInterrupt:
                 exit(1)
-            except:
-                pass
+            except Exception as e:
+                print(e)
 
 def get_arguments():
     parser = argparse.ArgumentParser()
